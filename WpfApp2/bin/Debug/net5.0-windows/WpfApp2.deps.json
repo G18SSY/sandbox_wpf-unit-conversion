@@ -1,0 +1,41 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v5.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v5.0": {
+      "WpfApp2/1.0.0": {
+        "dependencies": {
+          "UnitsNet": "4.112.0"
+        },
+        "runtime": {
+          "WpfApp2.dll": {}
+        }
+      },
+      "UnitsNet/4.112.0": {
+        "runtime": {
+          "lib/netstandard2.0/UnitsNet.dll": {
+            "assemblyVersion": "4.0.0.0",
+            "fileVersion": "4.0.0.0"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "WpfApp2/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "UnitsNet/4.112.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-2i+WNUdky5iAcQ4mLJOfiz9xpkcnH6U40V/Hd7Vd2LS2wEfVtIDy+AgU0q1xNa0FrMTyI5ZbTYPuEeVnidZ+7g==",
+      "path": "unitsnet/4.112.0",
+      "hashPath": "unitsnet.4.112.0.nupkg.sha512"
+    }
+  }
+}
