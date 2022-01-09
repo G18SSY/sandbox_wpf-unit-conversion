@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using System.Windows;
 using UnitsNet;
 using UnitsNet.Units;
@@ -13,6 +14,11 @@ namespace WpfApp2
 {
     public partial class UnitBox
     {
+        static UnitBox()
+        {
+            Task.Run(() => UnitConverter.Convert(1, LengthUnit.Meter, LengthUnit.Millimeter));
+        }
+        
         // Change handling:
         // SourceValue changed (not null) - If source unit is not null then update target value by converting to target unit
         // SourceValue changed (null) - Set target value to null
@@ -77,7 +83,7 @@ namespace WpfApp2
         private void SetTargetValue(double? value, bool updateRawValue = true)
         {
             SetValue(TargetValueProperty, value);
-
+            
             if (updateRawValue)
                 RawTargetValue = value.HasValue ? value.Value.ToString("0.######", CultureInfo.CurrentUICulture) : string.Empty;
         }
