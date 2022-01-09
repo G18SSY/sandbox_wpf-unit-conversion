@@ -3,14 +3,19 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:wpfApp2="clr-namespace:WpfApp2"
              x:Name="ControlElement"
              mc:Ignorable="d"
              d:DesignHeight="300" d:DesignWidth="300">
+    <UserControl.Resources>
+        <wpfApp2:IsNullConverter NullValue="False" x:Key="NullToFalseConverter" />
+    </UserControl.Resources>
     <StackPanel DataContext="{Binding ElementName=ControlElement}"
                 Orientation="Horizontal"
                 VerticalAlignment="Center"
-                Margin="5">
-        <TextBox Text="{Binding TargetValue, TargetNullValue=''}" 
+                Margin="5"
+                IsEnabled="{Binding TargetUnit, Converter={StaticResource NullToFalseConverter}}">
+        <TextBox Text="{Binding RawTargetValue, TargetNullValue=''}" 
                  VerticalAlignment="Stretch"
                  MinWidth="60"/>
         <ComboBox ItemsSource="{Binding AvailableUnits}"

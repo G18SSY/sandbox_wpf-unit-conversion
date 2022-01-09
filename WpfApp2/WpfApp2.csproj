@@ -4,9 +4,11 @@
         <OutputType>WinExe</OutputType>
         <TargetFramework>net5.0-windows</TargetFramework>
         <UseWPF>true</UseWPF>
+        <Nullable>enable</Nullable>
     </PropertyGroup>
 
     <ItemGroup>
+      <PackageReference Include="MaterialDesignThemes" Version="4.3.0" />
       <PackageReference Include="UnitsNet" Version="4.112.0" />
     </ItemGroup>
 

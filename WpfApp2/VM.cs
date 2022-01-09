@@ -1,5 +1,4 @@
-﻿#nullable enable
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using UnitsNet.Units;
 using WpfApp2.Annotations;

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Windows;
 using UnitsNet;
 using UnitsNet.Units;
@@ -22,16 +23,20 @@ namespace WpfApp2
         private static readonly ConcurrentDictionary<Type, IReadOnlyList<AbbreviatedUnit>> availableUnitsCache = new();
 
         public static readonly DependencyProperty SourceValueProperty = DependencyProperty.Register(
-            "SourceValue", typeof(double?), typeof(UnitBox), 
+            "SourceValue", typeof(double?), typeof(UnitBox),
             new PropertyMetadata(default(double?), SourceValueChanged));
 
         public static readonly DependencyProperty SourceUnitProperty = DependencyProperty.Register(
-            "SourceUnit", typeof(Enum), typeof(UnitBox), 
+            "SourceUnit", typeof(Enum), typeof(UnitBox),
             new PropertyMetadata(default(Enum), SourceUnitChanged));
 
         public static readonly DependencyProperty TargetValueProperty = DependencyProperty.Register(
             "TargetValue", typeof(double?), typeof(UnitBox),
-            new PropertyMetadata(default(double?), TargetValueChanged));
+            new PropertyMetadata(default(double?)));
+
+        public static readonly DependencyProperty RawTargetValueProperty = DependencyProperty.Register(
+            "RawTargetValue", typeof(string), typeof(UnitBox), 
+            new PropertyMetadata(default(string), RawTargetValueChanged));
 
         public static readonly DependencyProperty TargetUnitProperty = DependencyProperty.Register(
             "TargetUnit", typeof(Enum), typeof(UnitBox),
@@ -48,34 +53,44 @@ namespace WpfApp2
             InitializeComponent();
         }
 
+        public string? RawTargetValue
+        {
+            get => (string?)GetValue(RawTargetValueProperty);
+            set => SetValue(RawTargetValueProperty, value);
+        }
+
         public double? SourceValue
         {
             get => (double?)GetValue(SourceValueProperty);
             set => SetValue(SourceValueProperty, value);
         }
 
-        public Enum SourceUnit
+        public Enum? SourceUnit
         {
-            get => (Enum)GetValue(SourceUnitProperty);
+            get => (Enum?)GetValue(SourceUnitProperty);
             set => SetValue(SourceUnitProperty, value);
         }
 
+        private double? TargetValue 
+            => (double?)GetValue(TargetValueProperty);
 
-        private double? TargetValue
+        private void SetTargetValue(double? value, bool updateRawValue = true)
         {
-            get => (double?)GetValue(TargetValueProperty);
-            set => SetValue(TargetValueProperty, value);
+            SetValue(TargetValueProperty, value);
+
+            if (updateRawValue)
+                RawTargetValue = value.HasValue ? value.Value.ToString("0.######", CultureInfo.CurrentUICulture) : string.Empty;
         }
-
-        private Enum TargetUnit
+        
+        private Enum? TargetUnit
         {
-            get => (Enum)GetValue(TargetUnitProperty);
+            get => (Enum?)GetValue(TargetUnitProperty);
             set => SetValue(TargetUnitProperty, value);
         }
 
-        private IReadOnlyList<AbbreviatedUnit> AvailableUnits
+        private IReadOnlyList<AbbreviatedUnit>? AvailableUnits
         {
-            get => (IReadOnlyList<AbbreviatedUnit>)GetValue(AvailableUnitsProperty);
+            get => (IReadOnlyList<AbbreviatedUnit>?)GetValue(AvailableUnitsProperty);
             set => SetValue(AvailableUnitsProperty, value);
         }
 
@@ -100,9 +115,9 @@ namespace WpfApp2
         }
 
         private static void SourceUnitChanged(DependencyObject o, DependencyPropertyChangedEventArgs e)
-            => ExecuteExclusiveUpdate<Enum>(o, e, SourceUnitChangedSync);
+            => ExecuteExclusiveUpdate<Enum?>(o, e, SourceUnitChangedSync);
 
-        private static void SourceUnitChangedSync(UnitBox unitBox, Enum oldValue, Enum newValue)
+        private static void SourceUnitChangedSync(UnitBox unitBox, Enum? oldValue, Enum? newValue)
         {
             if (newValue == null)
             {
@@ -118,9 +133,9 @@ namespace WpfApp2
 
                     // Unit/quantity type changed so no need to convert anything
                     unitBox.TargetUnit = newValue;
-                    
+
                     // We have to set the values to match if the unit type has changed because we can't convert between differing unit types
-                    unitBox.TargetValue = unitBox.SourceValue;
+                    unitBox.SetTargetValue( unitBox.SourceValue);
                 }
                 else
                 {
@@ -129,7 +144,7 @@ namespace WpfApp2
                     Debug.Assert(unitBox.AvailableUnits != null);
 
                     if (unitBox.SourceValue is { } sourceValue)
-                        unitBox.TargetValue = UnitConverter.Convert(sourceValue, newValue, unitBox.TargetUnit);
+                        unitBox.SetTargetValue( UnitConverter.Convert(sourceValue, newValue, unitBox.TargetUnit));
                 }
             }
         }
@@ -140,42 +155,87 @@ namespace WpfApp2
         private static void SourceValueChangedSync(UnitBox unitBox, double? oldValue, double? newValue)
         {
             if (newValue == null)
-                unitBox.TargetValue = null;
+            {
+                unitBox.SetTargetValue( null);
+            }
             else if (unitBox.SourceUnit is { } sourceUnit)
             {
                 Debug.Assert(unitBox.TargetUnit != null);
-                unitBox.TargetValue = UnitConverter.Convert(newValue.Value, sourceUnit, unitBox.TargetUnit);
+                unitBox.SetTargetValue( UnitConverter.Convert(newValue.Value, sourceUnit, unitBox.TargetUnit));
             }
         }
 
-        private static void TargetValueChanged(DependencyObject o, DependencyPropertyChangedEventArgs e)
-            => ExecuteExclusiveUpdate<double?>(o, e, TargetValueChangedSync);
+        private static void RawTargetValueChanged(DependencyObject o, DependencyPropertyChangedEventArgs e)
+            => ExecuteExclusiveUpdate<string?>(o, e, RawTargetValueChangedSync);
 
-        private static void TargetValueChangedSync(UnitBox unitBox, double? oldValue, double? newValue)
-            => unitBox.UpdateSourceValue();
+        private static void RawTargetValueChangedSync(UnitBox unitBox, string? oldValue, string? newValue)
+        {
+            if (unitBox.TargetUnit is not { } targetUnit)
+                return;
 
+            Debug.Assert(unitBox.SourceUnit != null);
+            if (newValue==null)
+                unitBox.SourceValue = null;
+            else
+            {
+                (double, Enum?)? parseResult = ParseRawTarget(newValue, targetUnit.GetType());
+
+                if (parseResult == null)
+                {
+                    // Parse failed, reset to last good value
+                    unitBox.RawTargetValue = oldValue;
+                }
+                else
+                {
+                    if (parseResult.Value.Item2 is { } parsedTargetUnit)
+                    {
+                        targetUnit = parsedTargetUnit;
+                        unitBox.TargetUnit = targetUnit;
+                    }
+                    
+                    unitBox.SourceValue = UnitConverter.Convert(parseResult.Value.Item1, targetUnit, unitBox.SourceUnit);
+                    unitBox.SetTargetValue(parseResult.Value.Item1, false);
+                }
+            }
+        }
+
+        private static (double, Enum?)? ParseRawTarget(string value, Type unitType)
+        {
+            CultureInfo uiCulture = CultureInfo.CurrentUICulture;
+            if (double.TryParse(value, NumberStyles.Float, uiCulture, out double simpleParseResult))
+                return (simpleParseResult, null);
+
+            string negative = Regex.Escape(uiCulture.NumberFormat.NegativeSign);
+            string positive = Regex.Escape(uiCulture.NumberFormat.PositiveSign);
+            string sign = $@"(?>{negative}|{positive})";
+
+            string decimalSep = Regex.Escape(uiCulture.NumberFormat.NumberDecimalSeparator);
+
+            // TODO Tests for this monstrosity
+            Regex expression = new($@"^\s*(?'numeric'{sign}?\d+(?>{decimalSep}\d*)?(?>E{sign}?\d+)?)\s*(?'other'\w+)\s*$");
+            Match match = expression.Match(value);
+
+            if (!match.Success)
+                return null;
+
+            double parsedNumeric = double.Parse(match.Groups["numeric"].Value, NumberStyles.Float, uiCulture);
+            string rawUnit = match.Groups["other"].Value;
+
+            Enum unit = UnitParser.Default.Parse(rawUnit, unitType, uiCulture);
+
+            return (parsedNumeric, unit);
+        }
+        
         private static void TargetUnitChanged(DependencyObject o, DependencyPropertyChangedEventArgs e)
-            => ExecuteExclusiveUpdate<Enum>(o, e, TargetUnitChangedSync);
+            => ExecuteExclusiveUpdate<Enum?>(o, e, TargetUnitChangedSync);
 
-        private static void TargetUnitChangedSync(UnitBox unitBox, Enum oldValue, Enum newValue)
+        private static void TargetUnitChangedSync(UnitBox unitBox, Enum? oldValue, Enum? newValue)
         {
             if (unitBox.TargetValue is { } targetValue &&
                 oldValue != null &&
                 newValue != null &&
                 oldValue.GetType() == newValue.GetType())
-                unitBox.TargetValue = UnitConverter.Convert(targetValue, oldValue, newValue);
-        }
-
-        private void UpdateSourceValue()
-        {
-            if (TargetUnit is not { } targetUnit)
-                return;
-
-            Debug.Assert(SourceUnit !=null);
-            if (TargetValue is { } targetValue)
-                SourceValue = UnitConverter.Convert(targetValue, targetUnit, SourceUnit);
-            else
-                SourceValue = null;
+                unitBox.SetTargetValue( UnitConverter.Convert(targetValue, oldValue, newValue));
         }
 
         private static IReadOnlyList<AbbreviatedUnit> GetAbbreviatedUnitsFromCache(Type unitType)
