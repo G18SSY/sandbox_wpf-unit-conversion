@@ -12,6 +12,7 @@
     <StackPanel VerticalAlignment="Center" Margin="10">
         <TextBlock Text="{Binding Value, FallbackValue='NULL', Mode=OneWay}" />
         <TextBlock Text="{Binding Unit}" />
-        <local:UnitBox SourceValue="{Binding Value, Mode=TwoWay}" SourceUnit="{Binding Unit, Mode=OneTime}"/>
+        <local:UnitBox Margin="5" SourceValue="{Binding Value, Mode=TwoWay}" SourceUnit="{Binding Unit, Mode=OneTime}"/>
+        <local:UnitBox Margin="5" SourceValue="{Binding Value, Mode=TwoWay}" SourceUnit="{Binding Unit, Mode=OneTime}" IsEnabled="False"/>
     </StackPanel>
 </Window>
