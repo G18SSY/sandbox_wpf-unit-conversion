@@ -227,7 +227,8 @@ namespace WpfApp2
             double parsedNumeric = double.Parse(match.Groups["numeric"].Value, NumberStyles.Float, uiCulture);
             string rawUnit = match.Groups["other"].Value;
 
-            Enum unit = UnitParser.Default.Parse(rawUnit, unitType, uiCulture);
+            if (!UnitParser.Default.TryParse(rawUnit, unitType, uiCulture, out Enum? unit))
+                return null;
 
             return (parsedNumeric, unit);
         }
